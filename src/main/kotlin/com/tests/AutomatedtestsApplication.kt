@@ -6,6 +6,4 @@ import org.springframework.boot.runApplication
 @SpringBootApplication
 class AutomatedtestsApplication
 
-fun main(args: Array<String>) {
-	runApplication<AutomatedtestsApplication>(*args)
-}
+fun main(args: Array<String>) { runApplication<AutomatedtestsApplication>(*args) }

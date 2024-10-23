@@ -1,13 +1,16 @@
 package com.tests.steps
 
-import com.tests.configurations.CucumberTest
+import com.tests.services.DemoService
 import io.cucumber.java.en.Then
 import io.cucumber.java.en.When
 import io.qameta.allure.Allure.step
 
-class RestSteps: CucumberTest() {
+class RestSteps(
+    private val demoService: DemoService
+) {
     @When("I create label with title {string} via api")
     fun createLabelWithTitle(title: String?) {
+        demoService.`some method service`()
         step("POST /repos/:owner/:repo/labels")
     }
 

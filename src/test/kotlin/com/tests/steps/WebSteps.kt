@@ -1,14 +1,13 @@
 package com.tests.steps
 
-import com.tests.configurations.CucumberTest
 import io.cucumber.java.en.And
 import io.cucumber.java.en.Then
 import io.cucumber.java.en.When
 import org.junit.jupiter.api.Assertions
 import java.util.Random
 
-class WebSteps: CucumberTest() {
-    @When("^I open labels page$")
+class WebSteps {
+    @When("I open labels page")
     fun openLabelsPage() {
         maybeThrowElementNotFoundException()
     }
