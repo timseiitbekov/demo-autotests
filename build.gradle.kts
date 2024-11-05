@@ -13,6 +13,7 @@ version = "0.0.1-SNAPSHOT"
 val allureVersion = "2.24.0"
 val cucumberVersion = "7.13.0"
 val aspectJVersion = "1.9.20"
+val fuelVersion = "2.3.1"
 
 tasks.withType(JavaCompile::class) {
     sourceCompatibility = "${JavaVersion.VERSION_17}"
@@ -35,14 +36,20 @@ sourceSets {
 
 tasks {
     test {
-        description = "Runs cucumber and junit tests by default test job"
+        description = "Runs tests with specified tags"
+
+        project.findProperty("tags")?.toString()?.let { tags ->
+            useJUnitPlatform {
+                includeTags(*tags.split(",").toTypedArray())
+            }
+        } ?: useJUnitPlatform()
+
         systemProperties(project.gradle.startParameter.systemPropertiesArgs)
-        useJUnitPlatform {
-        }
     }
 }
 
 tasks.register<Test>("smokeTest") {
+    group = "verification"
     description = "Creates separate job to run both cucumber and junit smoke tests"
     systemProperties(project.gradle.startParameter.systemPropertiesArgs)
     useJUnitPlatform {
@@ -51,6 +58,7 @@ tasks.register<Test>("smokeTest") {
 }
 
 tasks.register<Test>("regressTest") {
+    group = "verification"
     description = "Creates separate job to run both cucumber and junit regression tests"
     systemProperties(project.gradle.startParameter.systemPropertiesArgs)
     useJUnitPlatform {
@@ -75,7 +83,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
-    // AspectJ dependencies
+    // AspectJ
     implementation("org.aspectj:aspectjrt:$aspectJVersion")
     "agent"("org.aspectj:aspectjweaver:$aspectJVersion")
 
@@ -97,6 +105,35 @@ dependencies {
     implementation("org.junit.jupiter:junit-jupiter-engine")
     implementation("org.junit.platform:junit-platform-suite:1.9.2")
 
+    // Fuel
+    implementation("com.github.kittinunf.fuel:fuel:$fuelVersion")
+    runtimeOnly("com.github.kittinunf.fuel:fuel-gson:$fuelVersion")
+    runtimeOnly("com.github.kittinunf.fuel:fuel-coroutines:$fuelVersion")
+    implementation("com.github.kittinunf.result:result:4.0.0")
+
+    // Json validation tools
+    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
+    implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("io.rest-assured:json-schema-validator")
+    implementation("net.javacrumbs.json-unit:json-unit:3.2.2")
+    implementation("net.javacrumbs.json-unit:json-unit-assertj:3.2.2")
+
+    // De/Serialization tools
+    implementation("com.google.code.gson:gson:2.10.1")
+
+    // Awaitility
+    implementation("org.awaitility:awaitility-kotlin")
+
+    // Selenium
+    implementation("org.seleniumhq.selenium:selenium-java")
+    implementation("org.seleniumhq.selenium:selenium-devtools-v127:4.23.1")
+    implementation("com.squareup.okhttp3:okhttp")
+
+    // WeBDriver
+    implementation("io.github.bonigarcia:webdrivermanager:5.8.0")
+    implementation("org.apache.httpcomponents.client5:httpclient5:5.3")
+
+    // Other
     implementation("org.slf4j:slf4j-simple:1.7.30")
 }
 
