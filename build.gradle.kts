@@ -13,6 +13,7 @@ version = "0.0.1-SNAPSHOT"
 val allureVersion = "2.24.0"
 val cucumberVersion = "7.13.0"
 val aspectJVersion = "1.9.20"
+val gatlingVersion = "3.10.5"
 val fuelVersion = "2.3.1"
 
 tasks.withType(JavaCompile::class) {
@@ -37,10 +38,11 @@ sourceSets {
 tasks {
     test {
         description = "Runs tests with specified tags"
+        // https://www.cleantestautomation.com/lessons/filtering-tests-with-maven-and-gradle/#:~:text=Filtering%20Tests%20With%20Gradle
 
         project.findProperty("tags")?.toString()?.let { tags ->
             useJUnitPlatform {
-                includeTags(*tags.split(",").toTypedArray())
+                includeTags(tags)
             }
         } ?: useJUnitPlatform()
 
@@ -114,6 +116,7 @@ dependencies {
     // Json validation tools
     implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin")
+    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
     implementation("io.rest-assured:json-schema-validator")
     implementation("net.javacrumbs.json-unit:json-unit:3.2.2")
     implementation("net.javacrumbs.json-unit:json-unit-assertj:3.2.2")
@@ -133,6 +136,13 @@ dependencies {
     implementation("io.github.bonigarcia:webdrivermanager:5.8.0")
     implementation("org.apache.httpcomponents.client5:httpclient5:5.3")
 
+    // Core Gatling dependencies
+    implementation("io.gatling:gatling-core:$gatlingVersion")
+    implementation("io.gatling:gatling-http:$gatlingVersion")
+    implementation("io.gatling:gatling-app:$gatlingVersion")
+    implementation("io.gatling:gatling-charts:$gatlingVersion")
+    implementation("io.gatling.highcharts:gatling-charts-highcharts:$gatlingVersion")
+
     // Other
     implementation("org.slf4j:slf4j-simple:1.7.30")
 }
@@ -141,6 +151,11 @@ kotlin {
     compilerOptions {
         freeCompilerArgs.addAll("-Xjsr305=strict")
     }
+}
+
+tasks.withType<JavaCompile> {
+    options.encoding = "UTF-8"
+    options.compilerArgs.addAll(listOf("-Xlint:unchecked", "-Xlint:deprecation"))
 }
 
 tasks.withType<Test> {

@@ -42,3 +42,6 @@ out/
 # Allure
 /allure-results/
 /allure-report/
+
+# Gatling results
+/gatling-report/
