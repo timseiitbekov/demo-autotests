@@ -39,9 +39,5 @@ out/
 ### Kotlin ###
 .kotlin
 
-# Allure
-/allure-results/
-/allure-report/
-
-# Gatling results
-/gatling-report/
+### Test reports ###
+/reports/

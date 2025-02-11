@@ -5,9 +5,10 @@ plugins {
     id("io.spring.dependency-management") version "1.1.6"
     java
     id("org.jlleitschuh.gradle.ktlint") version "11.6.1"
+    `maven-publish`
 }
 
-group = "com.tests"
+group = "com.autotests"
 version = "0.0.1-SNAPSHOT"
 
 val allureVersion = "2.24.0"
@@ -16,11 +17,26 @@ val aspectJVersion = "1.9.20"
 val gatlingVersion = "3.10.5"
 val fuelVersion = "2.3.1"
 
-tasks.withType(JavaCompile::class) {
-    sourceCompatibility = "${JavaVersion.VERSION_17}"
-    targetCompatibility = "${JavaVersion.VERSION_17}"
-    options.encoding = "UTF-8"
-    options.compilerArgs.add("-parameters")
+val workingDir = project.rootDir
+
+publishing {
+    repositories {
+        mavenLocal() // This publishes to ~/.m2/repository
+    }
+    publications {
+        create<MavenPublication>("maven") {
+            groupId = "com.autobaba.temirlan"
+            artifactId = "temirlan"
+            version = "1.0.0"
+            from(components["java"])
+        }
+    }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
 }
 
 configurations {
@@ -35,45 +51,6 @@ sourceSets {
     }
 }
 
-tasks {
-    test {
-        description = "Runs tests with specified tags"
-        // https://www.cleantestautomation.com/lessons/filtering-tests-with-maven-and-gradle/#:~:text=Filtering%20Tests%20With%20Gradle
-
-        project.findProperty("tags")?.toString()?.let { tags ->
-            useJUnitPlatform {
-                includeTags(tags)
-            }
-        } ?: useJUnitPlatform()
-
-        systemProperties(project.gradle.startParameter.systemPropertiesArgs)
-    }
-}
-
-tasks.register<Test>("smokeTest") {
-    group = "verification"
-    description = "Creates separate job to run both cucumber and junit smoke tests"
-    systemProperties(project.gradle.startParameter.systemPropertiesArgs)
-    useJUnitPlatform {
-        includeTags("smoke")
-    }
-}
-
-tasks.register<Test>("regressTest") {
-    group = "verification"
-    description = "Creates separate job to run both cucumber and junit regression tests"
-    systemProperties(project.gradle.startParameter.systemPropertiesArgs)
-    useJUnitPlatform {
-        includeTags("regress")
-    }
-}
-
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
-}
-
 repositories {
     mavenCentral()
 }
@@ -81,13 +58,17 @@ repositories {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
-    implementation("org.springframework.boot:spring-boot-starter-test")
-    implementation("org.jetbrains.kotlin:kotlin-test-junit5")
+    developmentOnly("org.springframework.boot:spring-boot-devtools")
+    testImplementation("org.springframework.boot:spring-boot-starter-test")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit5")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    runtimeOnly("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.9.25")
 
     // AspectJ
     implementation("org.aspectj:aspectjrt:$aspectJVersion")
     "agent"("org.aspectj:aspectjweaver:$aspectJVersion")
+
+    compileOnly("org.projectlombok:lombok:1.18.30")
 
     // Cucumber
     implementation(platform("io.cucumber:cucumber-bom:$cucumberVersion"))
@@ -127,21 +108,27 @@ dependencies {
     // Awaitility
     implementation("org.awaitility:awaitility-kotlin")
 
-    // Selenium
-    implementation("org.seleniumhq.selenium:selenium-java")
-    implementation("org.seleniumhq.selenium:selenium-devtools-v127:4.23.1")
-    implementation("com.squareup.okhttp3:okhttp")
-
-    // WeBDriver
-    implementation("io.github.bonigarcia:webdrivermanager:5.8.0")
-    implementation("org.apache.httpcomponents.client5:httpclient5:5.3")
-
     // Core Gatling dependencies
     implementation("io.gatling:gatling-core:$gatlingVersion")
     implementation("io.gatling:gatling-http:$gatlingVersion")
     implementation("io.gatling:gatling-app:$gatlingVersion")
     implementation("io.gatling:gatling-charts:$gatlingVersion")
     implementation("io.gatling.highcharts:gatling-charts-highcharts:$gatlingVersion")
+
+    // Faker
+    implementation("io.github.serpro69:kotlin-faker:1.15.0")
+
+    // Cyrillic converter
+    implementation("com.ibm.icu:icu4j:74.2")
+    // Commented as not needed for now
+//    // Selenium
+//    implementation("org.seleniumhq.selenium:selenium-java")
+//    implementation("org.seleniumhq.selenium:selenium-devtools-v127:4.23.1")
+//    implementation("com.squareup.okhttp3:okhttp")
+//
+//    // WeBDriver
+//    implementation("io.github.bonigarcia:webdrivermanager:5.8.0")
+//    implementation("org.apache.httpcomponents.client5:httpclient5:5.3")
 
     // Other
     implementation("org.slf4j:slf4j-simple:1.7.30")
@@ -153,22 +140,51 @@ kotlin {
     }
 }
 
+tasks.withType<Test> {
+    description = "Runs tests with specified tags"
+    // https://www.cleantestautomation.com/lessons/filtering-tests-with-maven-and-gradle/#:~:text=Introduction%20to%20Tag%20Expressions
+
+    doFirst {
+        val weaver = configurations["agent"].singleFile
+        jvmArgs = listOf("-javaagent:$weaver")
+    }
+
+    project.findProperty("tags")?.toString()?.let { tags ->
+        useJUnitPlatform {
+            includeTags(tags)
+        }
+    } ?: useJUnitPlatform()
+
+    systemProperties(project.gradle.startParameter.systemPropertiesArgs)
+
+    maxParallelForks = (Runtime.getRuntime().availableProcessors() / 2).coerceAtLeast(1)
+    setForkEvery(100)
+    reports.html.required.set(true)
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    kotlinOptions {
+        jvmTarget = "21"
+        freeCompilerArgs += "-Xjvm-default=all"
+    }
+}
+
+tasks.withType(JavaCompile::class) {
+    sourceCompatibility = "${JavaVersion.VERSION_21}"
+    targetCompatibility = "${JavaVersion.VERSION_21}"
+    options.encoding = "UTF-8"
+    options.compilerArgs.add("-parameters")
+}
+
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
     options.compilerArgs.addAll(listOf("-Xlint:unchecked", "-Xlint:deprecation"))
 }
 
-tasks.withType<Test> {
-    useJUnitPlatform()
-    doFirst {
-        val weaver = configurations["agent"].singleFile
-        jvmArgs = listOf("-javaagent:$weaver")
-    }
-}
-
+// Requested access to use allure.bat executable from command line, as for now useless
 tasks.register("generateAndCleanupAllureReport") {
     doFirst {
-        val allureResultsDir = file("${project.rootDir}/allure-results")
+        val allureResultsDir = file("$workingDir/reports/allure-results")
 
         if (!allureResultsDir.exists() || allureResultsDir.list()?.isEmpty() == true) {
             println("No allure-results folder found or folder is empty. Skipping report generation.")
@@ -176,7 +192,6 @@ tasks.register("generateAndCleanupAllureReport") {
         }
 
         exec {
-            workingDir = project.rootDir
             if (System.getProperty("os.name").lowercase().contains("windows")) {
                 commandLine("cmd", "/c", "allure", "generate", "--single-file", "--clean")
             } else {
@@ -193,8 +208,27 @@ tasks.register("generateAndCleanupAllureReport") {
     }
 }
 
-listOf("test", "smokeTest", "regressTest").forEach { taskName ->
-    tasks.named(taskName) {
-        finalizedBy("generateAndCleanupAllureReport")
+// Needed to move gatling-results folder content to reports package
+tasks.register("moveGatlingReportIntoReports") {
+    doLast {
+        val sourceDir = file("$workingDir/gatling-report")
+        val targetDir = file("$workingDir/reports/gatling-report")
+
+        if (sourceDir.exists()) {
+            if (!targetDir.exists()) {
+                targetDir.mkdirs()
+            }
+
+            project.copy {
+                from(sourceDir)
+                into(targetDir)
+            }
+
+            sourceDir.deleteRecursively()
+        }
     }
+}
+
+tasks.named("test") {
+    finalizedBy("moveGatlingReportIntoReports")
 }
